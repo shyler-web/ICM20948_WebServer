@@ -1,0 +1,35 @@
+# PlatformIO
+.pio/
+libdeps/
+.pioenvs/
+.piolibdeps/
+
+# Python virtual environment
+.venv/
+venv/
+env/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Compiled files
+*.bin
+*.elf
+*.map
+*.hex
+*.o
+
+# Logs
+logs/
+*.log
+
+# Windows/Mac thumbnails
+.DS_Store
+Thumbs.db
+
+# Backup files
+*~
+*.swp
+*.bak
+*.cppclear
