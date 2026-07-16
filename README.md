@@ -4,7 +4,9 @@
 [![Framework](https://img.shields.io/badge/Framework-Arduino-blue?style=for-the-badge&logo=arduino)](https://www.arduino.cc/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](http://makeapullrequest.com)
+## 🎥 Live Demo
 
+![Dashboard Demo](assets/demo.gif)
 > **Live 9-DOF motion tracking directly in your browser — no internet, no router, zero configuration.**
 
 Connect your phone or laptop to the ESP32's own Wi-Fi network, open **http://192.168.4.1**, and watch **accelerometer, gyroscope, magnetometer, and temperature** data stream at **20 Hz** — all served locally from the ESP32's flash memory.
