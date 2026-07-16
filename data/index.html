@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICM-20948 Live Dashboard</title>
+    <script src="/chart.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: #eee; text-align: center; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #4ecdc4; margin-bottom: 10px; }
+        #status { font-size: 14px; color: #aaa; margin-bottom: 20px; }
+        .data-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+        .data-item { background: #1a1a2e; padding: 12px; border-radius: 8px; border-left: 4px solid #4ecdc4; }
+        .data-item .label { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: 1px; }
+        .data-item .value { font-size: 22px; font-weight: bold; color: #fff; margin-top: 4px; }
+        .chart-container { background: #1a1a2e; padding: 20px; border-radius: 10px; margin: 20px 0; }
+        canvas { max-height: 280px; width: 100% !important; }
+        .btn { background: #4ecdc4; border: none; color: #0f0f1a; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; margin: 5px; }
+        .btn:hover { background: #45b7aa; }
+        .btn-danger { background: #ff6b6b; }
+        .btn-danger:hover { background: #e55a5a; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📊 ICM-20948 Real-Time Monitor</h1>
+    <div id="status">🟡 Connecting to ESP32...</div>
+
+    <div class="data-grid">
+        <div class="data-item"><div class="label">Accel X</div><div class="value" id="ax">0.00</div></div>
+        <div class="data-item"><div class="label">Accel Y</div><div class="value" id="ay">0.00</div></div>
+        <div class="data-item"><div class="label">Accel Z</div><div class="value" id="az">0.00</div></div>
+        <div class="data-item"><div class="label">Gyro X</div><div class="value" id="gx">0.00</div></div>
+        <div class="data-item"><div class="label">Gyro Y</div><div class="value" id="gy">0.00</div></div>
+        <div class="data-item"><div class="label">Gyro Z</div><div class="value" id="gz">0.00</div></div>
+        <div class="data-item"><div class="label">Mag X</div><div class="value" id="mx">0.00</div></div>
+        <div class="data-item"><div class="label">Mag Y</div><div class="value" id="my">0.00</div></div>
+        <div class="data-item"><div class="label">Mag Z</div><div class="value" id="mz">0.00</div></div>
+        <div class="data-item"><div class="label">Temp</div><div class="value" id="temp">0.00 °C</div></div>
+    </div>
+
+    <button class="btn" onclick="downloadCSV()">📥 Download CSV</button>
+    <button class="btn btn-danger" onclick="clearData()">🗑️ Clear Log</button>
+
+    <div class="chart-container">
+        <canvas id="accelChart"></canvas>
+    </div>
+</div>
+
+<script>
+    console.log("===== DASHBOARD PAGE LOADED =====");
+
+    // --------------------- VARIABLES ---------------------
+    const MAX_POINTS = 50;
+    let loggedData = [];
+    let reconnectAttempts = 0;
+    let socket;
+    const chartData = { labels: [], ax: [], ay: [], az: [] };
+
+    // --------------------- CHART SETUP ---------------------
+    console.log("[JS] Setting up Chart...");
+    const ctx = document.getElementById('accelChart');
+    if (!ctx) {
+        console.error("[JS] ERROR: Canvas element 'accelChart' not found!");
+    } else {
+        console.log("[JS] Canvas found, creating chart.");
+    }
+
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartData.labels,
+            datasets: [
+                { label: 'Accel X', data: chartData.ax, borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,0.1)', tension: 0.2, pointRadius: 0 },
+                { label: 'Accel Y', data: chartData.ay, borderColor: '#4ecdc4', backgroundColor: 'rgba(78,205,196,0.1)', tension: 0.2, pointRadius: 0 },
+                { label: 'Accel Z', data: chartData.az, borderColor: '#45b7d1', backgroundColor: 'rgba(69,183,209,0.1)', tension: 0.2, pointRadius: 0 }
+            ]
+        },
+        options: {
+            responsive: true,
+            animation: false,
+            plugins: { legend: { labels: { color: '#eee' } } },
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#aaa', maxTicksLimit: 8 } },
+                y: { min: -2, max: 2, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#aaa' } }
+            }
+        }
+    });
+    console.log("[JS] Chart created successfully.");
+
+    // --------------------- WEBSOCKET CONNECTION ---------------------
+    function connectWebSocket() {
+        console.log("[WS] Attempting to connect to ws://" + window.location.host + "/ws");
+        socket = new WebSocket('ws://' + window.location.host + '/ws');
+
+        socket.onopen = function() {
+            console.log("[WS] ✅ OPENED");
+            document.getElementById('status').innerHTML = '🟢 Connected. Receiving data...';
+            reconnectAttempts = 0;
+        };
+
+        socket.onclose = function(event) {
+            console.log("[WS] ❌ CLOSED. Code:", event.code, "Reason:", event.reason);
+            document.getElementById('status').innerHTML = '🔴 Disconnected. Reconnecting...';
+            let delay = Math.min(2000 + (reconnectAttempts * 2000), 20000);
+            reconnectAttempts++;
+            setTimeout(connectWebSocket, delay);
+        };
+
+        socket.onerror = function(error) {
+            console.error("[WS] ⚠️ ERROR:", error);
+            socket.close();
+        };
+
+        socket.onmessage = function(event) {
+            console.log("[WS] 📩 MESSAGE RECEIVED (raw):", event.data);
+            try {
+                const data = JSON.parse(event.data);
+                console.log("[WS] 📩 Parsed JSON:", data);
+                updateUI(data);
+            } catch (e) {
+                console.error("[WS] ❌ Failed to parse JSON:", e);
+            }
+        };
+    }
+
+    // --------------------- UI UPDATE ---------------------
+    function updateUI(data) {
+        console.log("[UI] Updating UI with data:", data);
+        document.getElementById('ax').textContent = data.ax.toFixed(2);
+        document.getElementById('ay').textContent = data.ay.toFixed(2);
+        document.getElementById('az').textContent = data.az.toFixed(2);
+        document.getElementById('gx').textContent = data.gx.toFixed(2);
+        document.getElementById('gy').textContent = data.gy.toFixed(2);
+        document.getElementById('gz').textContent = data.gz.toFixed(2);
+        document.getElementById('mx').textContent = data.mx.toFixed(2);
+        document.getElementById('my').textContent = data.my.toFixed(2);
+        document.getElementById('mz').textContent = data.mz.toFixed(2);
+        document.getElementById('temp').textContent = data.temp.toFixed(1) + ' °C';
+
+        loggedData.push({
+            timestamp: new Date().toISOString(),
+            ax: data.ax, ay: data.ay, az: data.az,
+            gx: data.gx, gy: data.gy, gz: data.gz,
+            mx: data.mx, my: data.my, mz: data.mz,
+            temp: data.temp
+        });
+
+        const time = new Date().toLocaleTimeString();
+        chartData.labels.push(time);
+        chartData.ax.push(data.ax);
+        chartData.ay.push(data.ay);
+        chartData.az.push(data.az);
+
+        if (chartData.labels.length > MAX_POINTS) {
+            chartData.labels.shift();
+            chartData.ax.shift();
+            chartData.ay.shift();
+            chartData.az.shift();
+        }
+        chart.update();
+        console.log("[UI] Chart updated.");
+    }
+
+    // --------------------- CSV DOWNLOAD & CLEAR ---------------------
+    function downloadCSV() {
+        if (loggedData.length === 0) {
+            alert('No data recorded yet!');
+            return;
+        }
+        let csv = 'timestamp,ax,ay,az,gx,gy,gz,mx,my,mz,temp\n';
+        loggedData.forEach(row => {
+            csv += `${row.timestamp},${row.ax},${row.ay},${row.az},${row.gx},${row.gy},${row.gz},${row.mx},${row.my},${row.mz},${row.temp}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `icm20948_data_${new Date().toISOString().slice(0,10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function clearData() {
+        if (confirm('Clear all logged data?')) {
+            loggedData = [];
+            alert('Data cleared. New data will be logged.');
+        }
+    }
+
+    // --------------------- START ---------------------
+    console.log("[JS] Starting WebSocket connection...");
+    connectWebSocket();
+</script>
+</body>
+</html>
