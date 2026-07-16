@@ -1,151 +1,322 @@
 # 📊 ESP32-S3 + ICM-20948 Real-Time Wireless IMU Dashboard
 
-[![PlatformIO](https://img.shields.io/badge/PlatformIO-ESP32--S3-orange)](https://platformio.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Framework](https://img.shields.io/badge/Framework-Arduino-blue)](https://www.arduino.cc/)
+[![PlatformIO](https://img.shields.io/badge/PlatformIO-ESP32--S3-orange?style=for-the-badge&logo=platformio)](https://platformio.org/)
+[![Framework](https://img.shields.io/badge/Framework-Arduino-blue?style=for-the-badge&logo=arduino)](https://www.arduino.cc/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](http://makeapullrequest.com)
 
-> **Live 3D motion tracking directly in your browser – no internet required!**
+> **Live 9-DOF motion tracking directly in your browser — no internet, no router, zero configuration.**
 
-This project turns an **ESP32-S3** and an **ICM-20948** 9-DOF sensor into a standalone Wi-Fi access point that serves a beautiful, real-time dashboard. Connect your phone or laptop to the ESP32's Wi-Fi, open `http://192.168.4.1`, and watch accelerometer, gyroscope, magnetometer, and temperature data update at 20Hz.
-
----
-
-## ✨ Features
-
-- **📶 Self-Hosted Wi-Fi**: ESP32 creates its own network – no router or internet needed.
-- **🚀 20Hz Real-Time Streaming**: Smooth, low-latency data updates via WebSockets.
-- **📊 Live Dashboard**: Beautiful dark-themed UI with scrolling charts (Chart.js).
-- **🛡️ Fail‑Safe Fallback**: If the sensor isn't connected, it automatically generates sine waves so the dashboard never breaks.
-- **💾 CSV Export**: Download your sensor data with one click for offline analysis.
-- **⚡ Built with PlatformIO**: Easy to compile, upload, and modify.
+Connect your phone or laptop to the ESP32's own Wi-Fi network, open **http://192.168.4.1**, and watch **accelerometer, gyroscope, magnetometer, and temperature** data stream at **20 Hz** — all served locally from the ESP32's flash memory.
 
 ---
 
-## 🛠️ Hardware Requirements
+# 📖 Table of Contents
 
-| Component | Quantity |
-| :--- | :--- |
-| ESP32-S3-DevKitC-1 (or any ESP32-S3 with 16MB Flash) | 1 |
-| ICM-20948 9-DOF IMU Breakout | 1 |
-| Jumper Wires (Female-to-Female) | 6 |
-
----
-
-## 🔌 Wiring Guide (SPI Mode)
-
-Connect the ICM-20948 to your ESP32-S3:
-
-| ICM-20948 Pin | ESP32-S3 Pin | Wire Color |
-| :--- | :--- | :--- |
-| VCC | 3.3V | Red |
-| GND | GND | Black |
-| SCK / SCL | GPIO 12 | Yellow |
-| MOSI / SDA | GPIO 11 | Green |
-| MISO / SDO | GPIO 13 | Blue |
-| CS | GPIO 10 | Orange |
-
-> **⚠️ Critical**: The ICM-20948 is **3.3V only** – do not connect to 5V. Ensure the `ADR` jumper on the breakout board is **OPEN** to enable SPI mode.
+- [✨ Features](#-features)
+- [🧠 Architecture](#-architecture)
+- [🔌 Hardware Wiring](#-hardware-wiring-spi-mode)
+- [📁 Project Structure](#-project-structure)
+- [🛠️ Prerequisites](#-prerequisites)
+- [📥 Installation & Upload](#-installation--upload)
+- [🛡️ Fallback Behavior](#️-fallback-behavior)
+- [📸 Screenshots](#-screenshots--demo)
+- [🐛 Troubleshooting](#-troubleshooting)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
 
 ---
 
-## 🚀 Getting Started
+# ✨ Features
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/yourusername/ICM20949_WebServer.git
-cd ICM20949_WebServer
-2. Install Dependencies
+| Feature | Description |
+|----------|-------------|
+| 📶 **Self-Hosted Wi-Fi AP** | ESP32 creates its own network—no router, internet, or external dependencies required. |
+| 🚀 **Real-Time Streaming** | WebSocket server pushes **9-axis IMU data + temperature** at **20 Hz (every 50 ms)**. |
+| 📊 **Live Dashboard** | Dark-mode interface with live values and a scrolling **Chart.js** graph. |
+| 🛡️ **Intelligent Fallback** | Automatically generates smooth sine waves when the sensor is unavailable so the dashboard never breaks. |
+| 💾 **CSV Export** | Download logged sensor data for offline analysis in Excel or Python. |
+| 🔌 **Offline-First** | All web assets are stored inside the ESP32 using **LittleFS**—no CDN required. |
+| ⚡ **PlatformIO Project** | Professional C++ workflow with dependency management and one-click uploads. |
 
-    Install VS Code and the PlatformIO extension.
+---
 
-    PlatformIO will automatically download the required libraries (SparkFun ICM-20948, ArduinoJson, ESPAsyncWebServer).
+# 🧠 Architecture
 
-3. Upload the Filesystem (LittleFS)
-bash
+The system follows a **client-server architecture**, where the ESP32 acts as both:
 
-pio run --target uploadfs
+- Wi-Fi Access Point (AP)
+- Web Server
+- WebSocket Server
 
-4. Upload the Firmware
-bash
+while the browser acts as the dashboard client.
 
-pio run --target upload
+```mermaid
+sequenceDiagram
+    participant Browser as Browser (Phone/PC)
+    participant ESP32 as ESP32-S3 (AP + WS Server)
+    participant Sensor as ICM-20948 (SPI)
 
-5. Connect and View
+    Browser->>ESP32: Connect to "ESP32-Dashboard"
+    Browser->>ESP32: GET http://192.168.4.1/
+    ESP32-->>Browser: Serve index.html + chart.min.js
 
-    On your phone/PC, connect to the Wi-Fi network ESP32-Dashboard.
+    Browser->>ESP32: WebSocket Handshake (ws://192.168.4.1/ws)
+    ESP32-->>Browser: Connection Established
 
-    Password: 12345678.
+    loop Every 50 ms
+        ESP32->>Sensor: Read Accelerometer, Gyroscope, Magnetometer & Temperature
+        Sensor-->>ESP32: Raw IMU Data
+        ESP32->>ESP32: Build JSON Packet
+        ESP32-->>Browser: Send via WebSocket
+        Browser->>Browser: Update Values & Graph
+    end
+```
 
-    Open your browser and go to http://192.168.4.1.
+---
 
-    Tilt the board and watch the data change in real-time!
+# 🔌 Hardware Wiring (SPI Mode)
 
-📂 Project Structure
-text
+Connect the **ICM-20948** to the **ESP32-S3** using the **SPI interface** for maximum speed (up to **7 MHz**).
 
+| ICM-20948 Pin | ESP32-S3 Pin | Suggested Wire Color |
+|---------------|--------------|----------------------|
+| VCC | 3.3V | 🔴 Red |
+| GND | GND | ⚫ Black |
+| SCK / SCL | GPIO 12 | 🟡 Yellow |
+| MOSI / SDA | GPIO 11 | 🟢 Green |
+| MISO / SDO | GPIO 13 | 🔵 Blue |
+| CS | GPIO 10 | 🟠 Orange |
+
+> ⚠️ **Important Notes**
+>
+> - The **ICM-20948 operates only at 3.3V**. Applying **5V** will permanently damage the sensor.
+> - Ensure the **ADR jumper is OPEN** (not soldered). A closed jumper disables SPI mode.
+> - Verify that **MOSI** connects to **MOSI** and **MISO** connects to **MISO**. These are commonly swapped accidentally.
+
+---
+
+# 📁 Project Structure
+
+```text
 ICM20949_WebServer/
+├── .gitignore                  # PlatformIO, Python, and IDE ignores
+├── platformio.ini              # PlatformIO configuration
+├── README.md                   # Documentation
 ├── data/
-│   ├── chart.min.js         # Chart.js library (served locally)
-│   └── index.html           # Dashboard HTML/CSS/JS
-├── src/
-│   └── main.cpp             # ESP32 firmware (Wi-Fi AP + WebSocket + Sensor)
-├── platformio.ini           # PlatformIO configuration
-└── README.md                # This file
+│   ├── chart.min.js            # Local Chart.js library (~230 KB)
+│   └── index.html              # Dashboard HTML/CSS/JavaScript
+└── src/
+    └── main.cpp                # ESP32 firmware
+```
 
-🧠 How It Works
+## 📂 data/
 
-    ESP32 Firmware:
+The **data/** directory stores all dashboard assets.
 
-        Initializes the ICM-20948 over SPI.
+Running
 
-        Starts an Access Point (ESP32-Dashboard).
+```bash
+pio run --target uploadfs
+```
 
-        Runs a WebSocket server on ws://192.168.4.1/ws.
-
-        Reads sensor data every 50ms and pushes JSON packets to all connected clients.
-
-    Fallback Logic:
-
-        If the sensor fails to initialize, the ESP32 generates smooth sine waves. This allows you to test the dashboard even without the hardware.
-
-    Web Dashboard:
-
-        Loads index.html and chart.min.js directly from the ESP32's flash (no internet required).
-
-        Establishes a WebSocket connection and updates the numbers and chart in real-time.
-
-        Includes auto‑reconnect logic and CSV download.
-🐛 Troubleshooting
-Issue	Solution
-Sensor not detected	Check MISO/MOSI wiring. Ensure the ADR jumper is OPEN.
-Dashboard loads but numbers stay at 0	Open the browser console (F12). If Chart is not defined appears, clear your browser cache.
-WebSocket disconnects	Temporarily disable Windows Firewall or add an inbound rule for port 80.
-Cannot upload filesystem	Ensure the data folder is in the project root and you have selected the correct partition scheme in platformio.ini.
-🤝 Contributing
-
-Pull requests are welcome! If you have improvements (e.g., 3D orientation cube, data logging to SD card, or MQTT integration), feel free to open an issue or submit a PR.
-🙏 Acknowledgements
-
-    SparkFun for the ICM-20948 library.
-
-    me-no-dev for the AsyncWebServer library.
-
-    Chart.js for the beautiful charts.
-
-⭐ If you found this useful, please give it a star! It helps others discover the project.
-text
-
+packages the entire folder into a **LittleFS filesystem image** and flashes it into the ESP32's flash memory, allowing the dashboard to work **completely offline**.
 
 ---
 
-## 📄 Step 4: The `README.md` Placeholder Images
+## 🛠️ Prerequisites
 
-In the README, I added placeholders for screenshots. **You must replace them** with actual images to get stars:
+Before starting, install the following:
 
-1. **Take a screenshot** of your dashboard on your phone (`http://192.168.4.1`).
-2. **Take a photo** of your wired setup (ESP32 + ICM-20948).
-3. Save them as `dashboard.png` and `wiring.jpg` inside a new folder called `images/` in your repo.
-4. Update the README links to:
-   ```markdown
-   ![Dashboard](images/dashboard.png)
-   ![Wiring](images/wiring.jpg)
+- VS Code
+- PlatformIO IDE Extension
+- Git *(optional)*
+- USB data cable
+- ESP32-S3 development board
+
+For best results:
+
+- Use the **Native USB** port for firmware uploading.
+- Use the **UART (CP210x)** port for Serial Monitor.
+
+---
+
+# 📥 Installation & Upload
+
+## 1. Clone the Repository
+
+```bash
+git clone https://github.com/YOUR_USERNAME/ICM20949_WebServer.git
+cd ICM20949_WebServer
+```
+
+> **Replace `YOUR_USERNAME` with your GitHub username.**
+
+---
+
+## 2. Upload the LittleFS Filesystem
+
+Upload the dashboard files stored inside the `data/` directory.
+
+```bash
+pio run --target uploadfs
+```
+
+Expected output:
+
+```text
+[SUCCESS] Took X.XX seconds
+```
+
+---
+
+## 3. Upload the Firmware
+
+Compile and flash the firmware.
+
+```bash
+pio run --target upload
+```
+
+Expected output:
+
+```text
+[SUCCESS] Took X.XX seconds
+Hard resetting via RTS pin...
+```
+
+---
+
+## 4. Open the Serial Monitor (Optional)
+
+Linux / WSL2
+
+```bash
+pio device monitor --port /dev/ttyUSB0
+```
+
+Windows
+
+```bash
+pio device monitor --port COMx
+```
+
+Replace **COMx** with your actual COM port.
+
+Press the **RST** button on the ESP32 to see boot messages and the Access Point IP address.
+
+---
+
+## 5. Open the Dashboard
+
+1. Open Wi-Fi settings.
+2. Connect to:
+
+```
+ESP32-Dashboard
+```
+
+Password:
+
+```
+12345678
+```
+
+Open:
+
+```
+http://192.168.4.1
+```
+
+The dashboard loads instantly and begins displaying live IMU data.
+
+---
+
+# 🛡️ Fallback Behavior
+
+The firmware includes an automatic fallback mode.
+
+| Scenario | Behavior |
+|----------|----------|
+| Sensor connected correctly | Streams real accelerometer, gyroscope, magnetometer, and temperature data. |
+| Sensor missing or wiring incorrect | Automatically generates smooth sine-wave data while keeping the dashboard fully functional. |
+
+> **Why this is useful**
+>
+> You can verify the Wi-Fi, web interface, WebSocket communication, and charts even before wiring the sensor. Once the sensor is connected correctly, real sensor values automatically replace the simulated data without modifying the code.
+
+---
+
+# 📸 Screenshots & Demo
+
+> **Replace the placeholder images below with your own screenshots.**
+
+| Live Dashboard | Hardware Setup |
+|:--------------:|:--------------:|
+| ![Dashboard](images/dashboard.png) | ![Hardware](images/wiring.jpg) |
+| *Dashboard displaying live values* | *ESP32-S3 connected to ICM-20948 via SPI* |
+
+### 🎬 Demo
+
+Replace this placeholder with your demonstration video.
+
+```text
+https://www.youtube.com/watch?v=YOUR_VIDEO_ID
+```
+
+---
+
+# 🐛 Troubleshooting
+
+| Problem | Likely Cause | Solution |
+|----------|-------------|----------|
+| Sensor not detected | MOSI/MISO swapped or ADR jumper closed | Verify SPI wiring and keep ADR jumper OPEN |
+| Dashboard loads but values remain zero | Cached HTML page | Hard refresh (`Ctrl + F5`) or clear browser cache |
+| WebSocket fails (`Chart is not defined`) | chart.min.js missing | Re-run `pio run --target uploadfs` |
+| LittleFS mount failed | Filesystem not flashed | Upload LittleFS again |
+| `pio` command not found | PlatformIO not installed globally | Activate your virtual environment or install PlatformIO |
+| USB port missing in WSL2 | USB device not attached | Attach it using `usbipd attach --wsl --busid <BUSID>` |
+
+---
+
+# 🤝 Contributing
+
+Contributions are welcome.
+
+Ideas include:
+
+- 3D Orientation Cube
+- Quaternion Visualization
+- ADS1299 Integration
+- Better Dashboard UI
+- Mobile Optimizations
+
+### Contribution Workflow
+
+```bash
+git checkout -b feature/amazing-feature
+git commit -m "Add amazing feature"
+git push origin feature/amazing-feature
+```
+
+Then open a Pull Request.
+
+---
+
+# 📄 License
+
+This project is licensed under the **MIT License**.
+
+See the **LICENSE** file for complete details.
+
+---
+
+## ⭐ Support the Project
+
+If this project helped you, consider giving it a ⭐ on GitHub.
+
+Replace the repository URL below with your own.
+
+```markdown
+[![GitHub stars](https://img.shields.io/github/stars/YOUR_USERNAME/ICM20949_WebServer.svg?style=social)](https://github.com/YOUR_USERNAME/ICM20949_WebServer)
+```
