@@ -22,7 +22,6 @@ Connect your phone or laptop to the ESP32's own Wi-Fi network, open **http://192
 - [🛠️ Prerequisites](#-prerequisites)
 - [📥 Installation & Upload](#-installation--upload)
 - [🛡️ Fallback Behavior](#️-fallback-behavior)
-- [📸 Screenshots](#-screenshots--demo)
 - [🐛 Troubleshooting](#-troubleshooting)
 - [🤝 Contributing](#-contributing)
 - [📄 License](#-license)
@@ -244,26 +243,6 @@ The firmware includes an automatic fallback mode.
 > **Why this is useful**
 >
 > You can verify the Wi-Fi, web interface, WebSocket communication, and charts even before wiring the sensor. Once the sensor is connected correctly, real sensor values automatically replace the simulated data without modifying the code.
-
----
-
-# 📸 Screenshots & Demo
-
-> **Replace the placeholder images below with your own screenshots.**
-
-| Live Dashboard | Hardware Setup |
-|:--------------:|:--------------:|
-| ![Dashboard](images/dashboard.png) | ![Hardware](images/wiring.jpg) |
-| *Dashboard displaying live values* | *ESP32-S3 connected to ICM-20948 via SPI* |
-
-### 🎬 Demo
-
-Replace this placeholder with your demonstration video.
-
-```text
-https://www.youtube.com/watch?v=YOUR_VIDEO_ID
-```
-
 ---
 
 # 🐛 Troubleshooting
