@@ -315,8 +315,4 @@ See the **LICENSE** file for complete details.
 
 If this project helped you, consider giving it a ⭐ on GitHub.
 
-Replace the repository URL below with your own.
-
-```markdown
-[![GitHub stars](https://img.shields.io/github/stars/shyler-web/ICM20949_WebServer?style=style=for-the-badge)](https://github.com/shyler-web/ICM20949_WebServer)
-```
+[![GitHub stars](https://img.shields.io/github/stars/shyler-web/ICM20949_WebServer?style=style=social)](https://github.com/shyler-web/ICM20949_WebServer)
