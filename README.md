@@ -318,5 +318,5 @@ If this project helped you, consider giving it a ⭐ on GitHub.
 Replace the repository URL below with your own.
 
 ```markdown
-[![GitHub stars](https://img.shields.io/github/stars/YOUR_USERNAME/ICM20949_WebServer.svg?style=social)](https://github.com/YOUR_USERNAME/ICM20949_WebServer)
+[![GitHub stars](https://img.shields.io/github/stars/shyler-web/ICM20949_WebServer.svg?style=social)](https://github.com/shyler-web/ICM20949_WebServer)
 ```
