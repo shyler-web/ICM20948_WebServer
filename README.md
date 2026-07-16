@@ -146,11 +146,9 @@ For best results:
 ## 1. Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ICM20949_WebServer.git
+git clone https://github.com/shyler-web/ICM20949_WebServer.git
 cd ICM20949_WebServer
 ```
-
-> **Replace `YOUR_USERNAME` with your GitHub username.**
 
 ---
 
